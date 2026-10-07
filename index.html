@@ -1,0 +1,740 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Card Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a menu screen, then a full-height workspace (toolbar + scrollable dotted table where index cards sit). */
+:root {
+  --bg: #E8EDF1;
+  --dot: #C2CCD5;
+  --surface: #F7F9FB;
+  --card: #FFFFFF;
+  --card-back: #EDF2FF;
+  --ink: #17202A;
+  --muted: #5A6772;
+  --line: #C9D4F2;
+  --rule: #D9534F;
+  --accent: #2F4FBF;
+  --accent-ink: #FFFFFF;
+  --border: #C6D0D9;
+  --bad: #B3261E;
+  --shadow: 0 1px 2px rgba(23,32,42,.14), 0 6px 14px rgba(23,32,42,.09);
+  --shadow-lift: 0 2px 4px rgba(23,32,42,.18), 0 16px 32px rgba(23,32,42,.2);
+  --font-display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151B; --dot: #25303B; --surface: #182029; --card: #222C37; --card-back: #1F2B47;
+    --ink: #E7EDF3; --muted: #9BA9B7; --line: #34425F; --rule: #E5736F; --accent: #8AA6FF;
+    --accent-ink: #0B1020; --border: #2F3A47; --bad: #FF8A80;
+    --shadow: 0 1px 2px rgba(0,0,0,.5), 0 6px 14px rgba(0,0,0,.4);
+    --shadow-lift: 0 2px 4px rgba(0,0,0,.5), 0 16px 32px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151B; --dot: #25303B; --surface: #182029; --card: #222C37; --card-back: #1F2B47;
+  --ink: #E7EDF3; --muted: #9BA9B7; --line: #34425F; --rule: #E5736F; --accent: #8AA6FF;
+  --accent-ink: #0B1020; --border: #2F3A47; --bad: #FF8A80;
+  --shadow: 0 1px 2px rgba(0,0,0,.5), 0 6px 14px rgba(0,0,0,.4);
+  --shadow-lift: 0 2px 4px rgba(0,0,0,.5), 0 16px 32px rgba(0,0,0,.55);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); font-weight: 500; font-size: 14px; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.big { height: 46px; padding: 0 20px; font-size: 15px; }
+.label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.field { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 9px 11px; }
+textarea.field { min-height: 92px; resize: vertical; line-height: 1.45; }
+.msg { margin: 0; min-height: 1.3em; font-size: 13px; color: var(--muted); }
+.msg.err { color: var(--bad); }
+
+/* ---------- Menu ---------- */
+#app { height: 100%; display: flex; flex-direction: column; }
+#menu { flex: 1; overflow: auto; padding-block: clamp(24px, 6vw, 64px); padding-inline: clamp(16px, 5vw, 72px); }
+.menu-grid { max-width: 1040px; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(2.6rem, 8vw, 4.6rem); line-height: .95; letter-spacing: -.02em; margin: 0 0 14px; text-wrap: balance; }
+.lede { margin: 0 0 26px; max-width: 46ch; color: var(--muted); font-size: 17px; }
+.start { display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.row > .field { flex: 1 1 200px; min-width: 0; height: 46px; }
+.or-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.how { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 6px; color: var(--muted); font-size: 14px; max-width: 46ch; }
+.how li { padding-left: 16px; position: relative; }
+.how li::before { content: ""; position: absolute; left: 0; top: .6em; width: 6px; height: 2px; background: var(--rule); }
+.dropzone-note { font-size: 13px; color: var(--muted); margin: 2px 0 0; }
+body.dragging-file #menu .start { outline: 2px dashed var(--accent); outline-offset: 8px; border-radius: 6px; }
+.stack { position: relative; height: 300px; width: min(100%, 340px); justify-self: center; }
+.demo-card { position: absolute; width: 240px; height: 160px; }
+.demo-card:nth-child(1) { left: 6px; top: 8px; transform: rotate(-7deg); }
+.demo-card:nth-child(2) { left: 70px; top: 70px; transform: rotate(4deg); }
+.demo-card:nth-child(3) { left: 24px; top: 132px; transform: rotate(-2deg); }
+
+/* ---------- Card faces (shared by real and demo cards) ---------- */
+.face {
+  --lh: 24px; --top: 34px; --rule-y: 31px; --fs: 16px; --side: 14px; --tag-top: 9px; --tag-fs: 10px;
+  position: absolute; inset: 0; display: flex; overflow: hidden;
+  padding: var(--top) var(--side) 8px; border: 1px solid var(--border); border-radius: 6px;
+  background-color: var(--card); box-shadow: var(--shadow);
+  background-image: linear-gradient(var(--rule), var(--rule)), repeating-linear-gradient(to bottom, transparent 0 calc(var(--lh) - 1px), var(--line) calc(var(--lh) - 1px) var(--lh));
+  background-size: 100% 2px, 100% 100%; background-position: 0 var(--rule-y), 0 var(--top); background-repeat: no-repeat;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+.face.back { background-color: var(--card-back); transform: rotateY(180deg); }
+.tag { position: absolute; top: var(--tag-top); left: var(--side); font-family: var(--font-mono); font-size: var(--tag-fs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.txt { flex: 1; min-width: 0; overflow-y: auto; font-size: var(--fs); line-height: var(--lh); white-space: pre-wrap; overflow-wrap: anywhere; scrollbar-width: thin; }
+
+/* ---------- Workspace ---------- */
+#work { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.bar .title { flex: 1 1 160px; min-width: 0; height: 36px; border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 0 8px; font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -.01em; }
+.bar .title:hover, .bar .title:focus { border-color: var(--border); background: var(--card); }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:disabled:hover { border-color: var(--border); }
+.count { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9ch; text-align: right; }
+
+.board { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
+.sheet { position: relative; background-image: radial-gradient(var(--dot) 1.2px, transparent 1.4px); background-size: 24px 24px; }
+.empty { position: absolute; left: 40px; top: 40px; max-width: 300px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; color: var(--muted); }
+.empty p { margin: 0; }
+
+.card { position: absolute; width: 240px; height: 160px; perspective: 900px; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+.card { cursor: grab; touch-action: none; }
+.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 6px; }
+.flip { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.3, .7, .2, 1); }
+.card.flipped .flip { transform: rotateY(180deg); }
+.card.dragging { z-index: 50; cursor: grabbing; }
+.card.dragging .face { box-shadow: var(--shadow-lift); }
+.tools { position: absolute; top: 4px; right: 6px; z-index: 3; display: flex; gap: 4px; }
+.tools button { height: 22px; padding: 0 7px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--muted); font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.tools button:hover { color: var(--accent); border-color: var(--accent); }
+.tools button[data-armed] { color: var(--bad); border-color: var(--bad); }
+
+/* ---------- Dialogs ---------- */
+.overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: rgba(8, 12, 18, .55); }
+.dlg { width: min(540px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 14px; padding: 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-lift); }
+.dlg h2 { margin: 0; font-family: var(--font-display); font-size: 22px; letter-spacing: -.01em; }
+.dlg p { margin: 0; color: var(--muted); font-size: 14px; }
+.dlg .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.json-box { font-family: var(--font-mono); font-size: 12px; height: 200px; min-height: 120px; line-height: 1.5; }
+.filebtn { position: relative; overflow: hidden; }
+.filebtn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
+.filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Review: one big card at a time ---------- */
+#review { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.rtitle { flex: 1 1 140px; min-width: 0; font-family: var(--font-display); font-weight: 700; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rpos { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); min-width: 7ch; text-align: right; }
+.rprog { height: 3px; background: var(--border); }
+.rprog span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+.stage { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 20px 16px; }
+.rwrap { justify-self: center; width: min(720px, 100%, max(260px, calc((100vh - 230px) * 1.5))); }
+.rcard { position: relative; width: 100%; aspect-ratio: 3 / 2; perspective: 1500px; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+.rcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 10px; }
+.rcard.flipped .flip { transform: rotateY(180deg); }
+.rcard .face { --lh: 36px; --top: 58px; --rule-y: 54px; --fs: 24px; --side: 28px; --tag-top: 19px; --tag-fs: 12px; border-radius: 10px; padding-bottom: 14px; box-shadow: var(--shadow-lift); }
+.navbtn { width: 52px; height: 52px; padding: 0; font-size: 22px; }
+.rhint { margin: 0; padding: 0 16px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 760px) {
+  .menu-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .stack { height: 290px; }
+  .count { display: none; }
+  .stage { grid-template-columns: 1fr 1fr; align-content: center; row-gap: 20px; }
+  .rwrap { grid-row: 1; grid-column: 1 / -1; }
+  #r-prev { grid-row: 2; grid-column: 1; justify-self: end; }
+  #r-next { grid-row: 2; grid-column: 2; justify-self: start; }
+  .rcard .face { --lh: 28px; --top: 46px; --rule-y: 42px; --fs: 19px; --side: 18px; --tag-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .flip { transition-duration: .01ms; } }
+</style>
+
+<div id="app">
+  <!-- Main menu -->
+  <main id="menu">
+    <div class="menu-grid">
+      <section>
+        <p class="eyebrow">Flashcard projects</p>
+        <h1>Card Table</h1>
+        <p class="lede">Lay your index cards out on a table, then flip through them to review. Each project saves to a file you can open again later.</p>
+        <div class="start">
+          <form class="row" id="new-form">
+            <input class="field" id="new-name" type="text" maxlength="60" placeholder="Project name, e.g. Biology unit 3" aria-label="Project name">
+            <button class="btn primary big" type="submit">Create new project</button>
+          </form>
+          <div class="or-row">
+            <button class="btn big" id="btn-load" type="button">Load project file</button>
+            <button class="btn big" id="btn-example" type="button">Open example deck</button>
+          </div>
+          <button class="btn big" id="btn-continue" type="button" hidden></button>
+          <p class="dropzone-note">You can also drop a project .json file anywhere on this page.</p>
+          <p class="msg err" id="menu-msg" role="alert"></p>
+        </div>
+        <ul class="how">
+          <li>Add cards, then drag them anywhere on the table.</li>
+          <li>Switch to Review. Cards start closed; click one to flip it.</li>
+          <li>Save writes your cards, positions and title to a .json file.</li>
+        </ul>
+      </section>
+      <div class="stack" aria-hidden="true">
+        <div class="demo-card"><div class="face"><span class="tag">Front</span><div class="txt">Which organelle makes most of a cell's ATP?</div></div></div>
+        <div class="demo-card"><div class="face"><span class="tag">Front</span><div class="txt">What do ribosomes build?</div></div></div>
+        <div class="demo-card"><div class="face"><span class="tag">Front</span><div class="txt">Where does the Calvin cycle happen?</div></div></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Workspace -->
+  <section id="work" hidden>
+    <div class="bar">
+      <button class="btn" id="btn-menu" type="button">Menu</button>
+      <input class="title" id="title" type="text" maxlength="60" aria-label="Project title" placeholder="Untitled deck">
+      <button class="btn" id="btn-add" type="button">Add card</button>
+      <button class="btn" id="btn-tidy" type="button">Tidy up</button>
+      <button class="btn primary" id="btn-review" type="button">Review</button>
+      <button class="btn" id="btn-save" type="button">Save</button>
+      <span class="count" id="count" aria-live="polite"></span>
+    </div>
+    <div class="board" id="board">
+      <div class="sheet" id="sheet">
+        <div class="empty" id="empty" hidden>
+          <p>This table is empty. Add a card with a prompt on the front and the answer on the back.</p>
+          <button class="btn primary" id="btn-add-first" type="button">Add your first card</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Review -->
+<section id="review" hidden aria-label="Review cards">
+  <div class="rbar">
+    <button class="btn" id="r-exit" type="button">Back to table</button>
+    <span class="rtitle" id="r-title"></span>
+    <button class="btn" id="r-shuffle" type="button" aria-pressed="false">Shuffle</button>
+    <span class="rpos" id="r-pos" aria-live="polite"></span>
+  </div>
+  <div class="rprog"><span id="r-bar"></span></div>
+  <div class="stage">
+    <button class="btn navbtn" id="r-prev" type="button" aria-label="Previous card">&larr;</button>
+    <div class="rwrap">
+      <div class="rcard" id="r-card" tabindex="0" role="button" aria-label="Flashcard. Press Space to flip.">
+        <div class="flip">
+          <div class="face front"><span class="tag">Front</span><div class="txt" id="r-front"></div></div>
+          <div class="face back"><span class="tag">Back</span><div class="txt" id="r-back"></div></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn navbtn" id="r-next" type="button" aria-label="Next card">&rarr;</button>
+  </div>
+  <p class="rhint">Click the card or press Space to flip it. Use the arrow keys to move between cards.</p>
+</section>
+
+<!-- Card editor -->
+<div class="overlay" id="dlg-card" hidden>
+  <form class="dlg" id="card-form" role="dialog" aria-modal="true" aria-labelledby="card-dlg-title">
+    <h2 id="card-dlg-title">New card</h2>
+    <div>
+      <label class="label" for="f-front">Front</label>
+      <textarea class="field" id="f-front" maxlength="600" data-focus placeholder="The question or prompt"></textarea>
+    </div>
+    <div>
+      <label class="label" for="f-back">Back</label>
+      <textarea class="field" id="f-back" maxlength="600" placeholder="The answer"></textarea>
+    </div>
+    <p class="msg err" id="card-msg" role="alert"></p>
+    <div class="actions">
+      <button class="btn" type="button" data-close>Cancel</button>
+      <button class="btn" type="button" id="btn-add-next">Add and next</button>
+      <button class="btn primary" type="submit" id="btn-card-ok">Add card</button>
+    </div>
+  </form>
+</div>
+
+<!-- Save -->
+<div class="overlay" id="dlg-save" hidden>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="save-title">
+    <h2 id="save-title">Save project</h2>
+    <p>Download the project as a .json file. If your browser blocks the download, copy the text below and paste it into a file that ends in .json.</p>
+    <label class="label" for="json-out">Project file contents</label>
+    <textarea class="field json-box" id="json-out" readonly data-focus></textarea>
+    <p class="msg" id="save-msg" role="status"></p>
+    <div class="actions">
+      <button class="btn" type="button" data-close>Close</button>
+      <button class="btn" type="button" id="btn-copy">Copy text</button>
+      <button class="btn primary" type="button" id="btn-download">Download .json</button>
+    </div>
+  </div>
+</div>
+
+<!-- Load -->
+<div class="overlay" id="dlg-load" hidden>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="load-title">
+    <h2 id="load-title">Load project file</h2>
+    <div>
+      <span class="label">From a file</span>
+      <span class="btn primary filebtn">Choose .json file<input type="file" id="file-in" accept=".json,application/json" aria-label="Choose a project .json file" data-focus></span>
+    </div>
+    <div>
+      <label class="label" for="json-in">Or paste the file contents</label>
+      <textarea class="field json-box" id="json-in" placeholder='{"title": "My deck", "cards": [...]}'></textarea>
+    </div>
+    <p class="msg err" id="load-msg" role="alert"></p>
+    <div class="actions">
+      <button class="btn" type="button" data-close>Cancel</button>
+      <button class="btn primary" type="button" id="btn-open-pasted">Open pasted project</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var CW = 240, CH = 160, GX = 270, GY = 190, PAD = 40, MAXPOS = 6000;
+  var LS_KEY = 'card-table:last';
+  var $ = function (s) { return document.querySelector(s); };
+  var board = $('#board'), sheet = $('#sheet'), work = $('#work'), menu = $('#menu');
+  var state = null, flipped = new Set(), drag = null, suppressClick = false, editingId = null, lastFocus = null;
+  var rOrder = [], rIdx = 0, rShuffle = false, rBackTimer = null;
+
+  var EXAMPLE = {
+    title: 'Cell biology basics',
+    cards: [
+      ['What does the mitochondrion do?', "Makes most of the cell's ATP through aerobic respiration."],
+      ['Where does the Calvin cycle happen?', 'In the stroma of the chloroplast.'],
+      ['Which organelle packages and ships proteins?', 'The Golgi apparatus.'],
+      ['What is osmosis?', 'Net movement of water across a semipermeable membrane toward the side with more solute.'],
+      ['Prokaryote vs eukaryote: where is the DNA?', 'Prokaryotes: in the nucleoid, with no membrane. Eukaryotes: inside a nucleus.'],
+      ['What do ribosomes build?', 'Proteins, by translating mRNA.'],
+      ['Which phase of mitosis lines chromosomes up at the equator?', 'Metaphase.'],
+      ['What is the job of lysosomes?', 'They break down waste and worn-out parts using digestive enzymes.']
+    ]
+  };
+
+  function uid() { return 'c' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3); }
+  function byId(id) { return state.cards.find(function (c) { return c.id === id; }); }
+
+  /* ---------- Save / load data ---------- */
+  function serialize() {
+    return {
+      app: 'card-table', version: 1, title: state.title,
+      cards: state.cards.map(function (c) { return { front: c.front, back: c.back, x: Math.round(c.x), y: Math.round(c.y) }; })
+    };
+  }
+  function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(serialize())); } catch (e) {} }
+
+  function parseProject(text) {
+    var data;
+    try { data = JSON.parse(text); } catch (e) { throw new Error('That is not valid JSON. Check that you copied the whole file.'); }
+    var list = Array.isArray(data) ? data : (data && data.cards);
+    if (!Array.isArray(list)) throw new Error('No cards found. A project file needs a "cards" list.');
+    var title = (!Array.isArray(data) && typeof data.title === 'string' && data.title.trim()) || 'Untitled deck';
+    var cards = [];
+    list.forEach(function (c) {
+      if (!c || typeof c !== 'object') return;
+      var hasPos = isFinite(c.x) && isFinite(c.y) && c.x !== null && c.y !== null;
+      cards.push({
+        id: uid(),
+        front: String(c.front == null ? '' : c.front).slice(0, 600),
+        back: String(c.back == null ? '' : c.back).slice(0, 600),
+        x: hasPos ? Math.min(MAXPOS, Math.max(0, Number(c.x))) : null,
+        y: hasPos ? Math.min(MAXPOS, Math.max(0, Number(c.y))) : null
+      });
+    });
+    return { title: title.slice(0, 60), cards: cards };
+  }
+
+  function readStored() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      return raw ? parseProject(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  /* ---------- Placement ---------- */
+  function cols() { return Math.max(1, Math.floor((board.clientWidth - PAD) / GX)); }
+  function freeSlot(existing) {
+    var n = cols();
+    for (var i = 0; i < 400; i++) {
+      var x = PAD + (i % n) * GX, y = PAD + Math.floor(i / n) * GY;
+      var taken = existing.some(function (c) { return Math.abs(c.x - x) < CW * 0.6 && Math.abs(c.y - y) < CH * 0.6; });
+      if (!taken) return { x: x, y: y };
+    }
+    return { x: PAD, y: PAD };
+  }
+  function placeMissing(cards) {
+    cards.forEach(function (c) {
+      if (c.x == null) {
+        var placed = cards.filter(function (o) { return o.x != null; });
+        var s = freeSlot(placed);
+        c.x = s.x; c.y = s.y;
+      }
+    });
+  }
+
+  /* ---------- Views ---------- */
+  function showMenu() {
+    work.hidden = true; menu.hidden = false;
+    $('#menu-msg').textContent = '';
+    var stored = readStored();
+    var cont = $('#btn-continue');
+    if (stored && stored.cards.length) {
+      cont.hidden = false;
+      cont.textContent = 'Continue "' + stored.title + '" (' + stored.cards.length + (stored.cards.length === 1 ? ' card)' : ' cards)');
+    } else { cont.hidden = true; }
+  }
+  function openProject(p) {
+    state = p; flipped.clear();
+    menu.hidden = true; work.hidden = false;
+    $('#title').value = state.title;
+    placeMissing(state.cards);
+    render();
+    board.scrollTo(0, 0);
+    persist();
+  }
+
+  /* ---------- Rendering ---------- */
+  function cardEl(c) {
+    var el = document.createElement('div');
+    el.className = 'card' + (flipped.has(c.id) ? ' flipped' : '');
+    el.dataset.id = c.id;
+    el.style.left = c.x + 'px'; el.style.top = c.y + 'px';
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', 'Flashcard. Press Enter to flip.');
+    var flip = document.createElement('div'); flip.className = 'flip';
+    ['front', 'back'].forEach(function (side) {
+      var f = document.createElement('div'); f.className = 'face ' + side;
+      var tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = side;
+      var t = document.createElement('div'); t.className = 'txt'; t.textContent = c[side];
+      f.appendChild(tag); f.appendChild(t); flip.appendChild(f);
+    });
+    el.appendChild(flip);
+    var tools = document.createElement('div'); tools.className = 'tools';
+    tools.innerHTML = '<button type="button" data-act="edit">Edit</button><button type="button" data-act="del">Delete</button>';
+    el.appendChild(tools);
+    return el;
+  }
+  function render() {
+    sheet.querySelectorAll('.card').forEach(function (n) { n.remove(); });
+    state.cards.forEach(function (c) { sheet.appendChild(cardEl(c)); });
+    $('#empty').hidden = state.cards.length > 0;
+    updateSheet(); updateCount();
+  }
+  function updateSheet() {
+    var w = 0, h = 0;
+    state.cards.forEach(function (c) { w = Math.max(w, c.x + CW + PAD * 2); h = Math.max(h, c.y + CH + PAD * 2); });
+    sheet.style.width = Math.max(board.clientWidth, w) + 'px';
+    sheet.style.height = Math.max(board.clientHeight, h) + 'px';
+  }
+  function updateCount() {
+    var n = state.cards.length;
+    $('#count').textContent = n + (n === 1 ? ' card' : ' cards');
+    $('#btn-review').disabled = n === 0;
+  }
+  function toggle(el) {
+    var id = el.dataset.id;
+    if (flipped.has(id)) { flipped.delete(id); el.classList.remove('flipped'); }
+    else { flipped.add(id); el.classList.add('flipped'); }
+    updateCount();
+  }
+
+  /* ---------- Dragging and flipping ---------- */
+  sheet.addEventListener('pointerdown', function (e) {
+    if (e.button > 0) return;
+    var el = e.target.closest('.card');
+    if (!el || e.target.closest('.tools')) return;
+    var c = byId(el.dataset.id);
+    drag = { el: el, c: c, sx: e.clientX, sy: e.clientY, ox: c.x, oy: c.y, moved: false };
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  sheet.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < 5) return;
+      drag.moved = true; drag.el.classList.add('dragging');
+    }
+    drag.c.x = Math.min(MAXPOS, Math.max(0, drag.ox + dx));
+    drag.c.y = Math.min(MAXPOS, Math.max(0, drag.oy + dy));
+    drag.el.style.left = drag.c.x + 'px'; drag.el.style.top = drag.c.y + 'px';
+    updateSheet();
+  });
+  function endDrag() {
+    if (!drag) return;
+    var d = drag; drag = null;
+    d.el.classList.remove('dragging');
+    if (d.moved) {
+      suppressClick = true;
+      setTimeout(function () { suppressClick = false; }, 60);
+      persist();
+    }
+  }
+  sheet.addEventListener('pointerup', endDrag);
+  sheet.addEventListener('pointercancel', endDrag);
+
+  sheet.addEventListener('click', function (e) {
+    var tb = e.target.closest('.tools button');
+    if (tb) { handleTool(tb); return; }
+    var el = e.target.closest('.card');
+    if (!el) return;
+    if (suppressClick) { suppressClick = false; return; }
+    toggle(el);
+  });
+  sheet.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('card')) {
+      e.preventDefault(); toggle(e.target);
+    }
+  });
+  function handleTool(btn) {
+    var el = btn.closest('.card'); var c = byId(el.dataset.id);
+    if (btn.dataset.act === 'edit') { openCardDialog(c); return; }
+    if (btn.hasAttribute('data-armed')) {
+      state.cards = state.cards.filter(function (o) { return o.id !== c.id; });
+      flipped.delete(c.id); persist(); render(); return;
+    }
+    btn.setAttribute('data-armed', ''); btn.textContent = 'Sure?';
+    setTimeout(function () { if (btn.isConnected) { btn.removeAttribute('data-armed'); btn.textContent = 'Delete'; } }, 2500);
+  }
+
+  /* ---------- Review view ---------- */
+  var rCard = $('#r-card');
+  function readingOrder() {
+    return state.cards.slice().sort(function (a, b) {
+      return Math.round(a.y / GY) - Math.round(b.y / GY) || a.x - b.x;
+    }).map(function (c) { return c.id; });
+  }
+  function buildOrder() {
+    rOrder = readingOrder();
+    if (rShuffle) {
+      for (var i = rOrder.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1)), t = rOrder[i]; rOrder[i] = rOrder[j]; rOrder[j] = t;
+      }
+    }
+  }
+  function showCard(wasFlipped) {
+    var c = byId(rOrder[rIdx]);
+    $('#r-front').textContent = c.front;
+    clearTimeout(rBackTimer);
+    /* Swap the back text after the card has turned away so the next answer is never visible. */
+    if (wasFlipped) rBackTimer = setTimeout(function () { $('#r-back').textContent = c.back; }, 320);
+    else $('#r-back').textContent = c.back;
+    $('#r-pos').textContent = (rIdx + 1) + ' / ' + rOrder.length;
+    $('#r-bar').style.width = ((rIdx + 1) / rOrder.length * 100) + '%';
+  }
+  function go(step) {
+    var was = rCard.classList.contains('flipped');
+    rCard.classList.remove('flipped');
+    rIdx = (rIdx + step + rOrder.length) % rOrder.length;
+    showCard(was);
+  }
+  function openReview() {
+    if (!state || !state.cards.length) return;
+    lastFocus = document.activeElement;
+    buildOrder(); rIdx = 0;
+    $('#r-title').textContent = state.title || 'Untitled deck';
+    rCard.classList.remove('flipped');
+    showCard(false);
+    $('#review').hidden = false;
+    rCard.focus();
+  }
+  function closeReview() {
+    $('#review').hidden = true;
+    clearTimeout(rBackTimer);
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (_) {} }
+  }
+  rCard.addEventListener('click', function () { rCard.classList.toggle('flipped'); });
+  $('#r-prev').addEventListener('click', function () { go(-1); });
+  $('#r-next').addEventListener('click', function () { go(1); });
+  $('#r-exit').addEventListener('click', closeReview);
+  $('#r-shuffle').addEventListener('click', function () {
+    rShuffle = !rShuffle;
+    $('#r-shuffle').setAttribute('aria-pressed', String(rShuffle));
+    var was = rCard.classList.contains('flipped');
+    rCard.classList.remove('flipped');
+    buildOrder(); rIdx = 0; showCard(was);
+  });
+  document.addEventListener('keydown', function (e) {
+    if ($('#review').hidden || document.querySelector('.overlay:not([hidden])')) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+    else if ((e.key === ' ' || e.key === 'Enter') && !(e.target.closest && e.target.closest('button'))) {
+      e.preventDefault(); rCard.classList.toggle('flipped');
+    } else if (e.key === 'Escape') { closeReview(); }
+  });
+
+  /* ---------- Dialogs ---------- */
+  function openDlg(id) {
+    var d = $(id); lastFocus = document.activeElement; d.hidden = false;
+    var f = d.querySelector('[data-focus]'); if (f) f.focus();
+  }
+  function closeDlg(d) { d.hidden = true; if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (_) {} } }
+  document.querySelectorAll('.overlay').forEach(function (o) {
+    o.addEventListener('mousedown', function (e) { if (e.target === o) closeDlg(o); });
+    o.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { closeDlg(o); }); });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var open = document.querySelector('.overlay:not([hidden])');
+      if (open) closeDlg(open);
+    }
+  });
+
+  /* Card editor */
+  function openCardDialog(c) {
+    editingId = c ? c.id : null;
+    $('#card-dlg-title').textContent = c ? 'Edit card' : 'New card';
+    $('#btn-card-ok').textContent = c ? 'Save changes' : 'Add card';
+    $('#btn-add-next').hidden = !!c;
+    $('#f-front').value = c ? c.front : ''; $('#f-back').value = c ? c.back : '';
+    $('#card-msg').textContent = '';
+    openDlg('#dlg-card');
+  }
+  function commitCard(keepOpen) {
+    var front = $('#f-front').value.trim(), back = $('#f-back').value.trim();
+    if (!front && !back) { $('#card-msg').textContent = 'Write something on at least one side.'; return; }
+    var target;
+    if (editingId) {
+      target = byId(editingId); target.front = front; target.back = back;
+    } else {
+      var s = freeSlot(state.cards);
+      target = { id: uid(), front: front, back: back, x: s.x, y: s.y };
+      state.cards.push(target);
+    }
+    persist(); render();
+    var el = sheet.querySelector('[data-id="' + target.id + '"]');
+    if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (keepOpen && !editingId) {
+      $('#f-front').value = ''; $('#f-back').value = ''; $('#card-msg').textContent = '';
+      $('#f-front').focus();
+    } else { closeDlg($('#dlg-card')); }
+  }
+  $('#card-form').addEventListener('submit', function (e) { e.preventDefault(); commitCard(false); });
+  $('#btn-add-next').addEventListener('click', function () { commitCard(true); });
+  $('#card-form').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitCard(false); }
+  });
+
+  /* Save */
+  function slug() {
+    return (state.title || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'project';
+  }
+  function openSave() {
+    persist();
+    $('#json-out').value = JSON.stringify(serialize(), null, 2);
+    $('#save-msg').textContent = '';
+    openDlg('#dlg-save');
+  }
+  var downloadsApi = null;
+  if (window.claude && window.claude.use) {
+    window.claude.use('downloads').then(function (d) { downloadsApi = d; }, function () {});
+  }
+  $('#btn-download').addEventListener('click', function () {
+    var json = $('#json-out').value, msg = $('#save-msg');
+    if (!downloadsApi) { msg.textContent = 'Saving a file is not available here. Use Copy text instead.'; return; }
+    downloadsApi.save({ filename: slug() + '.json', data: json }).then(
+      function () { msg.textContent = 'Saved as ' + slug() + '.json.'; },
+      function (err) {
+        msg.textContent = err && err.code === 'declined'
+          ? 'Save cancelled.'
+          : 'The file could not be saved. Use Copy text instead.';
+      }
+    );
+  });
+  $('#btn-copy').addEventListener('click', function () {
+    var box = $('#json-out');
+    function fallback() { box.focus(); box.select(); $('#save-msg').textContent = 'Press Ctrl+C (or Cmd+C) to copy the selected text.'; }
+    try {
+      navigator.clipboard.writeText(box.value).then(
+        function () { $('#save-msg').textContent = 'Copied. Paste it into a file that ends in .json.'; },
+        fallback
+      );
+    } catch (e) { fallback(); }
+  });
+
+  /* Load */
+  function tryOpenText(text, msgEl) {
+    try {
+      var p = parseProject(text);
+      if (!p.cards.length) throw new Error('That file has no cards in it.');
+      document.querySelectorAll('.overlay').forEach(function (o) { o.hidden = true; });
+      lastFocus = null;
+      openProject(p);
+    } catch (err) { msgEl.textContent = err.message; }
+  }
+  function readFile(file, msgEl) {
+    if (!file) return;
+    var r = new FileReader();
+    r.onload = function () { tryOpenText(String(r.result), msgEl); };
+    r.onerror = function () { msgEl.textContent = 'Could not read that file.'; };
+    r.readAsText(file);
+  }
+  $('#btn-load').addEventListener('click', function () { $('#load-msg').textContent = ''; $('#json-in').value = ''; openDlg('#dlg-load'); });
+  $('#file-in').addEventListener('change', function (e) { readFile(e.target.files[0], $('#load-msg')); e.target.value = ''; });
+  $('#btn-open-pasted').addEventListener('click', function () {
+    var t = $('#json-in').value.trim();
+    if (!t) { $('#load-msg').textContent = 'Paste the contents of a project file first.'; return; }
+    tryOpenText(t, $('#load-msg'));
+  });
+
+  /* Drop a file on the menu */
+  ['dragenter', 'dragover'].forEach(function (t) {
+    document.addEventListener(t, function (e) {
+      if (menu.hidden) return;
+      e.preventDefault(); document.body.classList.add('dragging-file');
+    });
+  });
+  document.addEventListener('dragleave', function (e) { if (!e.relatedTarget) document.body.classList.remove('dragging-file'); });
+  document.addEventListener('drop', function (e) {
+    document.body.classList.remove('dragging-file');
+    if (menu.hidden) return;
+    e.preventDefault();
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) readFile(f, $('#menu-msg'));
+  });
+
+  /* ---------- Menu and toolbar wiring ---------- */
+  $('#new-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('#new-name').value.trim() || 'Untitled deck';
+    openProject({ title: name.slice(0, 60), cards: [] });
+    $('#new-name').value = '';
+  });
+  $('#btn-example').addEventListener('click', function () {
+    openProject(parseProject(JSON.stringify({ title: EXAMPLE.title, cards: EXAMPLE.cards.map(function (c) { return { front: c[0], back: c[1] }; }) })));
+  });
+  $('#btn-continue').addEventListener('click', function () { var p = readStored(); if (p) openProject(p); });
+  $('#btn-menu').addEventListener('click', function () { persist(); showMenu(); });
+  $('#title').addEventListener('input', function (e) { state.title = e.target.value; persist(); });
+  $('#btn-review').addEventListener('click', openReview);
+  $('#btn-add').addEventListener('click', function () { openCardDialog(null); });
+  $('#btn-add-first').addEventListener('click', function () { openCardDialog(null); });
+  $('#btn-save').addEventListener('click', openSave);
+  $('#btn-tidy').addEventListener('click', function () {
+    var n = cols();
+    var sorted = state.cards.slice().sort(function (a, b) { return Math.round(a.y / GY) - Math.round(b.y / GY) || a.x - b.x; });
+    sorted.forEach(function (c, i) { c.x = PAD + (i % n) * GX; c.y = PAD + Math.floor(i / n) * GY; });
+    persist(); render();
+  });
+  window.addEventListener('resize', function () { if (state && !work.hidden) updateSheet(); });
+
+  showMenu();
+})();
+</script>
+
+</body></html>
